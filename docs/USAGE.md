@@ -6,6 +6,8 @@
 
 ### Start with Check Device & Offers
 
+On Windows, **Prepare MuMu** can create and open a new portrait Android 15 instance. Enter the Google Play email to watch for, then complete sign-in and any verification in MuMu. After the account appears, choose **Check Device & Offers** to run Step 1 on the new instance.
+
 1. Click **Check Device & Offers** on the welcome screen. It invokes **Step 1 — Available offers**, intended to *list* offers rather than initiate checkout.
 2. Watch **Live Status** for the stage, elapsed time, current activity and result. **Show technical details** reveals execution output. A warning after 30 seconds without new output indicates inactivity, **not proof of a hang**.
 3. Check the account and offer information on the Android screen. A listed offer is **not** a guarantee of eligibility or a successful subscription.

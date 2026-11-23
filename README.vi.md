@@ -1,6 +1,6 @@
 # ePlus AI Toolkit — Tiếng Việt
 
-<!-- Source README.md git-blob: a68087fe5b1794e92832f5ff1bfd41dca32f3d53 -->
+<!-- Source README.md git-blob: 2b8488a21c25e7b771f7a4014f8b945e182fe285 -->
 
 [English](README.md) · **Tiếng Việt** · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · [Français](README.fr.md)
 
@@ -121,6 +121,8 @@ Trên bảng điều khiển có hai chức năng kiểm tra được phát tri�
 Nhấn **Check Device & Offers** để chạy **Step 1 — Available offers** và kiểm tra ưu đãi mà **không bắt đầu thanh toán**. Bạn có thể theo dõi tiến trình tại **Live Status**, chọn **Show technical details** để xem thông tin kỹ thuật và kiểm tra đúng tài khoản trong Google Play. Nếu 30 giây không có thông báo mới, công cụ sẽ cảnh báo; điều đó **chưa có nghĩa là chương trình đã bị treo**.
 
 Trên Windows, hãy đăng nhập đúng tài khoản trong Google Play trước khi kiểm tra. Khi công cụ xác minh được tài khoản và tìm thấy ưu đãi 12 tháng có giá kỳ đầu bằng 0, chọn **Review 12-month checkout** để xem và xác nhận riêng Step 2. Nếu được yêu cầu, hãy nhập thông tin thanh toán trực tiếp trong Google Play. Sau khi hoàn tất, kiểm tra gói đăng ký thực tế và ngày gia hạn tại đó.
+
+Trên Windows, **Prepare MuMu** có thể tạo và mở một máy ảo Android 15 mới ở chế độ dọc. Nhập địa chỉ email Google Play cần nhận diện, rồi đăng nhập và xác minh trong MuMu. Khi công cụ nhận diện được tài khoản, chọn **Check Device & Offers** để chạy Step 1 trên máy ảo mới.
 
 Step 1 không mua hàng, nhưng quá trình chuẩn bị vẫn có thể tải hoặc sửa ADB/Frida và thay đổi cấu hình máy ảo hoặc mạng. **Step 0 — Environment cũng có thể thay đổi môi trường trên máy**, nên không được xem là thao tác hoàn toàn chỉ đọc. Thanh bên hiển thị sáu bước; thông tin trong Android Device và Google Account được lấy từ kết quả thực tế, đồng thời che bớt dữ liệu nhận dạng tài khoản. Những terminal có hỗ trợ liên kết sẽ cho phép mở trang của tác giả gốc và người duy trì.
 

@@ -1,6 +1,6 @@
 # ePlus AI Toolkit — 简体中文
 
-<!-- Source README.md git-blob: a68087fe5b1794e92832f5ff1bfd41dca32f3d53 -->
+<!-- Source README.md git-blob: 2b8488a21c25e7b771f7a4014f8b945e182fe285 -->
 
 [English](README.md) · [Tiếng Việt](README.vi.md) · **简体中文** · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · [Français](README.fr.md)
 
@@ -122,6 +122,8 @@ sh run-macos.sh
 点击 **Check Device & Offers** 执行 **Step 1 — Available offers**：查询优惠，**不会发起订阅结账**。可通过 **Live Status** 和 **Show technical details** 查看进度。如果 30 秒内没有新日志，程序会给出提醒，但这**不一定表示程序卡住了**。
 
 在 Windows 上，请先在 Google Play 中登录要使用的账号，再查询优惠。如果工具核实了账号，并找到首期价格为零的 12 个月优惠，请选择 **Review 12-month checkout** 查看详情并单独确认 Step 2。若有提示，请直接在 Google Play 中填写付款信息。结账后，请在那里核实实际订阅状态和续订日期。
+
+在 Windows 上，**Prepare MuMu** 可创建并打开新的竖屏 Android 15 实例。请输入要检测的 Google Play 邮箱，然后在 MuMu 中登录并完成所需验证。检测到账户后，选择 **Check Device & Offers**，在新实例上运行 Step 1。
 
 在 **Advanced: Run by step** 中，可选择：
 

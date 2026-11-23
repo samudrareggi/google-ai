@@ -1,6 +1,6 @@
 # ePlus AI Toolkit — 日本語
 
-<!-- Source README.md git-blob: a68087fe5b1794e92832f5ff1bfd41dca32f3d53 -->
+<!-- Source README.md git-blob: 2b8488a21c25e7b771f7a4014f8b945e182fe285 -->
 
 [English](README.md) · [Tiếng Việt](README.vi.md) · [简体中文](README.zh-CN.md) · **日本語** · [한국어](README.ko.md) · [Español](README.es.md) · [Français](README.fr.md)
 
@@ -122,6 +122,8 @@ sh run-macos.sh
 **Check Device & Offers** を押すと **Step 1 — Available offers** が実行され、オファーを照会します。**購入処理は開始しません**。**Live Status** と **Show technical details** で進行状況を確認します。ログ更新が 30 秒ない場合の警告は、フリーズの確定ではありません。
 
 Windows では、特典を確認する前に、利用するアカウントで Google Play にログインしてください。アカウントが確認され、初回料金が 0 の 12 か月特典が見つかった場合は、**Review 12-month checkout** を選んで内容を確認し、Step 2 のみを個別に承認します。支払い情報の入力を求められた場合は、Google Play で直接入力してください。手続き後は、Google Play で実際の契約状況と更新日を確認してください。
+
+Windows では **Prepare MuMu** で縦向きの Android 15 インスタンスを作成して起動できます。検出対象の Google Play メールアドレスを入力し、MuMu でログインと必要な認証を済ませてください。アカウントが検出されたら **Check Device & Offers** を選び、新しいインスタンスで Step 1 を実行します。
 
 **Advanced: Run by step** のモード：
 

@@ -1,6 +1,6 @@
 # ePlus AI Toolkit — Français
 
-<!-- Source README.md git-blob: a68087fe5b1794e92832f5ff1bfd41dca32f3d53 -->
+<!-- Source README.md git-blob: 2b8488a21c25e7b771f7a4014f8b945e182fe285 -->
 
 [English](README.md) · [Tiếng Việt](README.vi.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · **Français**
 
@@ -123,6 +123,8 @@ Lorsqu'une étape est en cours, les commandes **Check Device & Offers**, **Run**
 **Check Device & Offers** exécute **Step 1 — Available offers**, pour consulter les offres **sans déclencher de paiement**. Surveillez **Live Status** et **Show technical details** ; l'absence de nouveaux journaux pendant 30 secondes ne signifie pas forcément que l'outil est bloqué.
 
 Sous Windows, connectez-vous au compte voulu dans Google Play avant de consulter les offres. Si l’outil vérifie le compte et trouve l’offre de 12 mois dont le prix initial est nul, choisissez **Review 12-month checkout** pour vérifier les conditions et autoriser séparément le Step 2. Si Google Play vous le demande, saisissez les informations de paiement directement dans l’application. Vérifiez ensuite dans Google Play l’état de l’abonnement et sa date de renouvellement.
+
+Sous Windows, **Prepare MuMu** permet de créer et d’ouvrir une nouvelle instance Android 15 en mode portrait. Saisissez l’adresse Google Play à détecter, puis connectez-vous dans MuMu et effectuez les vérifications demandées. Une fois le compte détecté, choisissez **Check Device & Offers** pour exécuter le Step 1 sur la nouvelle instance.
 
 Dans **Advanced: Run by step** :
 

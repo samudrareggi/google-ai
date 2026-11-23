@@ -14,6 +14,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+from threading import Event
 import time
 
 from rich.markup import escape
@@ -21,12 +22,13 @@ from textual import on, work
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import ModalScreen
-from textual.widgets import Button, Footer, Header, Link, RichLog, Select, Static
+from textual.widgets import Button, Footer, Header, Input, Link, RichLog, Select, Static
 
 from tui_core import STAGES, Outcome, command_for_step, mask_email, \
     needs_setup, offer_explorer_lines, outcome_for_stage, read_fresh_report, \
     report_summary, validate_step
 from device_diagnostics import ConnectionDiagnosis, inspect_connection
+import mumu_setup
 
 
 class Approval(ModalScreen[bool]):
@@ -62,6 +64,83 @@ class Approval(ModalScreen[bool]):
     @on(Button.Pressed, "#approval_actions Button")
     def approve(self, event: Button.Pressed) -> None:
         self.dismiss(event.button.id == "approve")
+
+
+class PrepareMuMu(ModalScreen[str | None]):
+    CSS = """
+    PrepareMuMu { align: center middle; background: #070d19 75%; }
+    #mumu_card { width: 66; max-width: 94%; height: auto; padding: 1 2;
+                 background: #15243a; border: round #3d6383; }
+    #mumu_message { height: auto; min-height: 2; margin: 1 0; }
+    #mumu_controls { height: 3; align-horizontal: right; }
+    #mumu_controls Button { margin-left: 1; }
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.stop = Event()
+        self.preparing = False
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="mumu_card"):
+            yield Static("Prepare a new MuMu instance", classes="section")
+            yield Input(placeholder="Google Play email", id="mumu_email")
+            yield Static("Sign in and complete any verification in MuMu.", id="mumu_message")
+            with Horizontal(id="mumu_controls"):
+                yield Button("Close", id="mumu_close")
+                yield Button("Create instance", id="mumu_create", variant="primary")
+
+    @on(Button.Pressed, "#mumu_create")
+    def create_instance(self) -> None:
+        field = self.query_one("#mumu_email", Input)
+        email = field.value.strip()
+        if not mumu_setup.EMAIL.fullmatch(email):
+            self.query_one("#mumu_message", Static).update("Enter the email you will use in Google Play.")
+            return
+        field.value = ""
+        field.disabled = True
+        self.query_one("#mumu_create", Button).disabled = True
+        self.query_one("#mumu_close", Button).label = "Stop waiting"
+        self.preparing = True
+        self.prepare_instance(email)
+
+    @on(Button.Pressed, "#mumu_close")
+    def close_setup(self) -> None:
+        self.stop.set()
+        if self.preparing:
+            close = self.query_one("#mumu_close", Button)
+            close.label = "Stopping..."
+            close.disabled = True
+        else:
+            self.dismiss(None)
+
+    def on_unmount(self) -> None:
+        self.stop.set()
+
+    def show_progress(self, message: str) -> None:
+        if not self.stop.is_set():
+            self.query_one("#mumu_message", Static).update(message)
+
+    @work(thread=True, exclusive=True)
+    def prepare_instance(self, email: str) -> None:
+        try:
+            serial = mumu_setup.prepare(
+                email, self.stop,
+                lambda message: self.app.call_from_thread(self.show_progress, message),
+            )
+            self.app.call_from_thread(self.finish_preparation, serial)
+        except (RuntimeError, ValueError) as error:
+            self.app.call_from_thread(self.finish_preparation, None, str(error))
+
+    def finish_preparation(self, serial: str | None, error: str = "") -> None:
+        self.preparing = False
+        if self.stop.is_set():
+            self.dismiss(None)
+        elif error:
+            self.show_progress(error)
+            self.query_one("#mumu_close", Button).label = "Close"
+        else:
+            self.dismiss(serial)
 
 
 def is_macos_platform() -> bool:
@@ -114,6 +193,8 @@ class GoogleAITUI(App[None]):
         width: 100%; height: 3; margin: 0;
     }
     #nav_home, #nav_quick, #advanced, #sequence, #run_all { display: none; }
+    #start_options { height: 3; }
+    #start_options > #prepare_mumu, #start_options > #advanced_toggle { width: 1fr; min-width: 0; }
     #quickstart { display: block; width: 100%; height: 3; margin: 0 0 1 0; }
     #advanced_toggle { width: 100%; height: 3; margin: 0; }
     #workflow_actions { display: none; height: auto; margin-top: 1; border-top: solid #285d83; padding-top: 1; }
@@ -216,6 +297,8 @@ class GoogleAITUI(App[None]):
         self._last_outcome: Outcome | None = None
         self._verified_account: str | None = None
         self._checked_device: str | None = None
+        self._prepared_device: str | None = None
+        self.mumu_setup_available = sys.platform == "win32"
         self._quick_check = False
         self._checkout_target: tuple[str, str] | None = None
         self._started_at: float | None = None
@@ -256,7 +339,12 @@ class GoogleAITUI(App[None]):
                         yield Static("GET STARTED · READ-ONLY CHECK", id="welcome")
                         yield Static("Check MuMu connection and Google AI offers without opening checkout.", id="quick_hint")
                         yield Button("Check Device & Offers", id="quickstart", variant="success")
-                        yield Button("Advanced: Run by step  +", id="advanced_toggle")
+                        if self.mumu_setup_available:
+                            with Horizontal(id="start_options"):
+                                yield Button("Prepare MuMu", id="prepare_mumu")
+                                yield Button("Advanced: Run by step  +", id="advanced_toggle")
+                        else:
+                            yield Button("Advanced: Run by step  +", id="advanced_toggle")
                         with Vertical(id="workflow_actions"):
                             with Horizontal(id="form_row"):
                                 with Vertical(classes="field", id="mode_field"):
@@ -337,6 +425,8 @@ class GoogleAITUI(App[None]):
         self._diagnosing = True
         self.query_one("#diagnose", Button).disabled = True
         self.query_one("#quickstart", Button).disabled = True
+        if self.mumu_setup_available:
+            self.query_one("#prepare_mumu", Button).disabled = True
         self.query_one("#run", Button).disabled = True
         self._set_status("Inspecting Android connection...")
         self._set_message(
@@ -360,6 +450,8 @@ class GoogleAITUI(App[None]):
         self._diagnosing = False
         self.query_one("#diagnose", Button).disabled = False
         self.query_one("#quickstart", Button).disabled = False
+        if self.mumu_setup_available:
+            self.query_one("#prepare_mumu", Button).disabled = False
         self.query_one("#run", Button).disabled = False
         self._set_status(diagnosis.headline)
         self._set_message(diagnosis.guidance)
@@ -501,6 +593,24 @@ class GoogleAITUI(App[None]):
         self._checkout_target = target
         self._start(step, sequence)
 
+    @on(Button.Pressed, "#prepare_mumu")
+    def prepare_mumu_pressed(self) -> None:
+        if not self.mumu_setup_available or self.busy or self._diagnosing or isinstance(self.screen, ModalScreen):
+            return
+        self.push_screen(PrepareMuMu(), self._mumu_prepared)
+
+    def _mumu_prepared(self, serial: str | None) -> None:
+        if not serial:
+            return
+        self._prepared_device = serial
+        self.sequence = False
+        self._last_outcome = None
+        next_step = self.query_one("#next", Button)
+        next_step.disabled = True
+        next_step.display = False
+        self._set_status("MuMu ready")
+        self._set_message("The requested Android account was found. Select Check Device & Offers to verify Google Play.")
+
     @on(Button.Pressed, "#quickstart")
     def quickstart_pressed(self) -> None:
         if self.busy or self._diagnosing or isinstance(self.screen, ModalScreen):
@@ -616,9 +726,13 @@ class GoogleAITUI(App[None]):
         )
 
     def action_run_selected(self) -> None:
-        self.selected_pressed()
+        if not isinstance(self.screen, ModalScreen):
+            self.selected_pressed()
 
     def action_quit_safely(self) -> None:
+        if isinstance(self.screen, PrepareMuMu):
+            self.screen.close_setup()
+            return
         if not self.busy:
             self.exit()
             return
@@ -665,6 +779,8 @@ class GoogleAITUI(App[None]):
             else "Connecting to MuMu and preparing tools..."
         )
         self.query_one("#quickstart", Button).disabled = True
+        if self.mumu_setup_available:
+            self.query_one("#prepare_mumu", Button).disabled = True
         self.query_one("#diagnose", Button).disabled = True
         self.query_one("#run", Button).disabled = True
         self.query_one("#sequence", Button).disabled = True
@@ -741,6 +857,8 @@ class GoogleAITUI(App[None]):
             if step == 2 and self._checkout_target:
                 account, serial = self._checkout_target
                 command.extend(("-Email", account, "-Serial", serial))
+            elif self._prepared_device:
+                command.extend(("-Serial", self._prepared_device))
             return_code = self._execute(command)
             if self._cancel_requested:
                 self.call_from_thread(self._finished, step, Outcome("cancelled", "Check stopped", "Cancelled read-only check."), None)
@@ -818,6 +936,8 @@ class GoogleAITUI(App[None]):
         self.query_one("#manual", Button).display = False
         self.query_one("#manual", Button).disabled = True
         self.query_one("#quickstart", Button).disabled = False
+        if self.mumu_setup_available:
+            self.query_one("#prepare_mumu", Button).disabled = False
         self.query_one("#diagnose", Button).disabled = False
         self.query_one("#run", Button).disabled = False
         self.query_one("#sequence", Button).disabled = False

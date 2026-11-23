@@ -214,6 +214,28 @@ class TextualSmokeTests(unittest.IsolatedAsyncioTestCase):
                         self.assertNotIsInstance(app.screen, Approval)
                         launch.assert_called_once_with(1)
 
+    async def test_prepare_mumu_waits_for_account_without_starting_offer_check(self):
+        from textual.widgets import Input
+        from tui import GoogleAITUI, PrepareMuMu
+
+        with tempfile.TemporaryDirectory() as directory:
+            app = GoogleAITUI(repo=Path(directory))
+            app.mumu_setup_available = True
+            with patch("tui.mumu_setup.prepare", return_value="127.0.0.1:16416") as prepare, \
+                 patch.object(app, "run_stage") as run:
+                async with app.run_test(size=(90, 20)) as pilot:
+                    await pilot.click("#prepare_mumu")
+                    self.assertIsInstance(app.screen, PrepareMuMu)
+                    app.screen.query_one("#mumu_email", Input).value = "test@example.com"
+                    await pilot.click("#mumu_create")
+                    await app.workers.wait_for_complete()
+                    await pilot.pause()
+                    self.assertEqual(app._prepared_device, "127.0.0.1:16416")
+                    self.assertEqual(prepare.call_args.args[0], "test@example.com")
+                    run.assert_not_called()
+                    await pilot.click("#quickstart")
+                    run.assert_called_once_with(1)
+
     async def test_application_branding(self):
         from tui import GoogleAITUI
         self.assertEqual(GoogleAITUI.TITLE, "ePlus AI Toolkit")
