@@ -51,6 +51,18 @@ class Outcome:
 
 
 MESSAGES = {
+    "checkout_account_mismatch": (
+        "Checkout is using a different account",
+        "Verify the billing account in Google Play. If it is different, close checkout and check offers again.",
+    ),
+    "checkout_account_unverified": (
+        "Checkout account could not be verified",
+        "Review the billing account and terms directly on the Google Play checkout screen.",
+    ),
+    "payment_method_not_confirmed": (
+        "Payment method could not be verified",
+        "Finish payment setup in Google Play and review the checkout screen and subscription status.",
+    ),
     "listed": ("Offers loaded", "Offer metadata is not proof of eligibility."),
     "checkout_requested": (
         "Checkout submitted - not yet verified",

@@ -11,6 +11,36 @@ spec.loader.exec_module(app)
 
 
 class CheckoutTests(unittest.TestCase):
+    def test_checkout_requires_the_expected_account_before_subscribe(self):
+        for identity, reason in (
+            ("", "checkout_account_unverified"),
+            ("other@example.com", "checkout_account_mismatch"),
+            ("selected@example.com", "checkout_account_unverified"),
+            ("Google Play account: selected@example.com", "zero_today_and_duration_verified"),
+        ):
+            with self.subTest(identity=identity), \
+                 patch.object(app, "ui_xml", return_value="mock"), \
+                 patch.object(app, "nodes", return_value=[{
+                     "text": "Google AI Pro Subscribe Today US$0 12-month free trial " + identity,
+                     "desc": ""}]), \
+                 patch.object(app, "tap_text", return_value=True) as tap:
+                result = app.confirm_zero(wait=2, expected_plan="pro12",
+                                          expected_account="selected@example.com")
+                self.assertEqual(result["reason"], reason)
+                self.assertEqual(tap.call_count, int(reason == "zero_today_and_duration_verified"))
+
+    def test_waits_for_manual_payment_setup_then_rechecks_account_and_price(self):
+        screens = ["Add payment method Add credit or debit card",
+                   "Google AI Pro Subscribe Today US$0 12-month free trial Google Play account: selected@example.com"]
+        with patch.object(app, "ui_xml", side_effect=screens), \
+             patch.object(app, "nodes", side_effect=lambda text: [{"text": text, "desc": ""}]), \
+             patch.object(app, "tap_text", return_value=True) as tap, \
+             patch.object(app.time, "sleep"):
+            result = app.confirm_zero(wait=4, expected_plan="pro12",
+                                      expected_account="selected@example.com")
+        self.assertTrue(result["confirmed"])
+        tap.assert_called_once()
+
     def test_future_renewal_price_does_not_mask_zero_due_today(self):
         result = app.assess_checkout_terms(
             "Google AI Pro Subscribe Today US$0.00 12-month free trial "

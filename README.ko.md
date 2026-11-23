@@ -1,6 +1,6 @@
 # ePlus AI Toolkit — 한국어
 
-<!-- Source README.md git-blob: 52a6b829e68d1c83f2ffba023a0d43364ea8b6eb -->
+<!-- Source README.md git-blob: a68087fe5b1794e92832f5ff1bfd41dca32f3d53 -->
 
 [English](README.md) · [Tiếng Việt](README.vi.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · **한국어** · [Español](README.es.md) · [Français](README.fr.md)
 
@@ -120,6 +120,8 @@ sh run-macos.sh
 
 
 **Check Device & Offers**는 **Step 1 — Available offers**를 실행하여 프로모션을 조회합니다. **구독 결제를 시작하지 않습니다**. **Live Status**와 **Show technical details**에서 진행 상황을 확인하세요. 30초 동안 로그가 없다는 경고는 반드시 프로그램이 멈췄다는 뜻이 아닙니다.
+
+Windows에서는 혜택을 확인하기 전에 사용할 계정으로 Google Play에 로그인하세요. 계정이 확인되고 첫 기간 요금이 0인 12개월 혜택이 표시되면 **Review 12-month checkout**을 눌러 내용을 검토한 뒤 Step 2만 별도로 승인하세요. 결제 정보가 필요하면 Google Play에서 직접 입력하세요. 절차가 끝나면 Google Play에서 실제 구독 상태와 갱신 날짜를 확인하세요.
 
 **Advanced: Run by step** 모드:
 

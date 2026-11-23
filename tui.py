@@ -19,7 +19,7 @@ import time
 from rich.markup import escape
 from textual import on, work
 from textual.app import App, ComposeResult
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import ModalScreen
 from textual.widgets import Button, Footer, Header, Link, RichLog, Select, Static
 
@@ -36,25 +36,28 @@ class Approval(ModalScreen[bool]):
     Approval { align: center middle; background: #070d19 75%; }
     #approval_card {
         width: 66; max-width: 92%; height: auto;
-        padding: 2 3; background: #15243a; border: round #3d6383;
+        max-height: 95%; padding: 1 3; background: #15243a; border: round #3d6383;
     }
     #approval_title { text-style: bold; color: #ebf5ff; margin-bottom: 1; }
+    #approval_scroll { height: auto; max-height: 1fr; overflow-y: auto; }
     #approval_message { color: #c9d8e8; margin-bottom: 2; }
-    #approval_actions { height: auto; align-horizontal: right; }
+    #approval_actions { height: 3; min-height: 3; align-horizontal: right; }
     #approval_actions Button { margin-left: 1; }
     """
 
-    def __init__(self, title: str, message: str) -> None:
+    def __init__(self, title: str, message: str, *, continue_label: str = "Continue") -> None:
         super().__init__()
         self.title_text, self.message_text = title, message
+        self.continue_label = continue_label
 
     def compose(self) -> ComposeResult:
         with Vertical(id="approval_card"):
             yield Static(self.title_text, id="approval_title")
-            yield Static(self.message_text, id="approval_message")
+            with VerticalScroll(id="approval_scroll", can_focus=True):
+                yield Static(self.message_text, id="approval_message")
             with Horizontal(id="approval_actions"):
                 yield Button("Cancel", id="cancel")
-                yield Button("Continue", id="approve", variant="warning")
+                yield Button(self.continue_label, id="approve", variant="warning")
 
     @on(Button.Pressed, "#approval_actions Button")
     def approve(self, event: Button.Pressed) -> None:
@@ -212,6 +215,9 @@ class GoogleAITUI(App[None]):
         self._exit_after_step = False
         self._last_outcome: Outcome | None = None
         self._verified_account: str | None = None
+        self._checked_device: str | None = None
+        self._quick_check = False
+        self._checkout_target: tuple[str, str] | None = None
         self._started_at: float | None = None
         self._last_activity_at: float | None = None
         self.advanced_visible = False
@@ -450,7 +456,7 @@ class GoogleAITUI(App[None]):
         return validate_step(int(self.query_one("#step", Select).value))
 
     def _confirm_stage(self, step: int, sequence: bool,
-                       previous_verified: bool = False) -> None:
+                       previous_verified: bool = False, *, target: tuple[str, str] | None = None) -> None:
         if self.busy or self._diagnosing:
             return
         if step == 2:
@@ -465,6 +471,10 @@ class GoogleAITUI(App[None]):
         else:
             self._start(step, sequence)
             return
+        if target:
+            account, _ = target
+            message += (f" Expected account: {escape(mask_email(account))}. "
+                        "If asked, enter your payment method in Google Play.")
         if step in (2, 3, 4):
             number = step - 1
             message += (
@@ -483,10 +493,19 @@ class GoogleAITUI(App[None]):
             message = ("Confirm the previous stage ACTUALLY changed the Google Play "
                        "subscription/renewal date. " + message)
         self.push_screen(Approval(title, message),
-                         lambda approved: self._start(step, sequence) if approved else None)
+                         lambda approved: self._approved_stage(step, sequence, target) if approved else None)
+
+    def _approved_stage(self, step: int, sequence: bool, target: tuple[str, str] | None) -> None:
+        if self.busy or self._diagnosing:
+            return
+        self._checkout_target = target
+        self._start(step, sequence)
 
     @on(Button.Pressed, "#quickstart")
     def quickstart_pressed(self) -> None:
+        if self.busy or self._diagnosing or isinstance(self.screen, ModalScreen):
+            return
+        self._quick_check = not self.macos_mode
         self._confirm_stage(1, False)
 
     @on(Button.Pressed, "#run")
@@ -624,6 +643,7 @@ class GoogleAITUI(App[None]):
         self._exit_after_step = False
         self._last_outcome = None
         self._verified_account = None
+        self._checked_device = None
         self._last_output.clear()
         self._run_output.clear()
         self.query_one("#debug_log", RichLog).clear()
@@ -718,6 +738,9 @@ class GoogleAITUI(App[None]):
                 return
             started = time.time()
             command = command_for_step(step, self.repo)
+            if step == 2 and self._checkout_target:
+                account, serial = self._checkout_target
+                command.extend(("-Email", account, "-Serial", serial))
             return_code = self._execute(command)
             if self._cancel_requested:
                 self.call_from_thread(self._finished, step, Outcome("cancelled", "Check stopped", "Cancelled read-only check."), None)
@@ -753,13 +776,17 @@ class GoogleAITUI(App[None]):
         self.query_one("#activity", Static).update(phase)
         if self.debug_visible:
             self.query_one("#debug_log", RichLog).write(line)
-        if re.search(r"Action required:|Press Enter to continue", line, re.I):
+        if "Action required: Add your payment method directly in Google Play." in line:
+            self._set_message("Enter your payment method in Google Play. The checkout will be checked again.")
+        elif re.search(r"Action required:|Press Enter to continue", line, re.I):
             btn = self.query_one("#manual", Button)
             btn.display = True
             btn.disabled = False
             self._set_message("Complete the requested action on Android, then click Completed.")
-        if re.search(r"\bDevice\s+(emulator-\d+|[0-9.]+:\d+)\s*$", line):
-            self.query_one("#device", Static).update("Device  •  " + escape(line.split()[-1]))
+        device = re.fullmatch(r"\s*Device\s+([A-Za-z0-9_.:\[\]-]+)\s*", line)
+        if device:
+            self._checked_device = device.group(1)
+            self.query_one("#device", Static).update("Device  •  " + escape(self._checked_device))
         # Trust only the structured PowerShell "Account <email>" status line,
         # not arbitrary log messages containing an email address.
         account = re.match(
@@ -785,6 +812,8 @@ class GoogleAITUI(App[None]):
 
     def _finished(self, step: int, outcome: Outcome, report: dict | None) -> None:
         self.busy = False
+        quick_check, self._quick_check = self._quick_check, False
+        self._checkout_target = None
         self._last_outcome = outcome
         self.query_one("#manual", Button).display = False
         self.query_one("#manual", Button).disabled = True
@@ -833,6 +862,25 @@ class GoogleAITUI(App[None]):
         if self._exit_after_step:
             self.exit()
             return
+        if quick_check and step == 1 and outcome.code == "listed" and report:
+            account = self._verified_account
+            device = self._checked_device
+            detected = str(report.get("detected_play_account") or "").strip().lower()
+            if account and device and (not detected or detected == account) and any(
+                isinstance(offer, dict) and offer.get("id") == STAGES[2].offer
+                and str(offer.get("micros")) == "0" for offer in (report.get("offers") or ())
+            ):
+                target = (account, device)
+                self.push_screen(
+                    Approval("Device and offers checked",
+                             "Google Play returned a 12-month offer with a zero-priced first phase. "
+                             "Review Step 2 for this offer only. Google Play determines eligibility.",
+                             continue_label="Review 12-month checkout"),
+                    lambda review: self._confirm_stage(2, False, target=target) if review else None,
+                )
+            elif not account:
+                self._set_message("Open the Play Store home screen in MuMu, sign in if needed, "
+                                  "select your profile, then run Check Device & Offers again.")
         if outcome.code == "checkout_requested":
             self.notify("Review the actual subscription in Google Play.", severity="warning")
         elif outcome.code not in ("listed", "environment_ok", "cancelled"):

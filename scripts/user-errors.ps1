@@ -52,6 +52,18 @@ function Get-UserIssue {
                 Action = "Check the Google Play screen. No Subscribe action was confirmed."
             }
         }
+        "checkout_account_mismatch" {
+            return [pscustomobject]@{
+                Title = "Checkout is using a different account"
+                Action = "Verify the billing account in Google Play. If it is different, close checkout and check offers again."
+            }
+        }
+        "checkout_account_unverified" {
+            return [pscustomobject]@{
+                Title = "Checkout account could not be verified"
+                Action = "Review the billing account and terms directly on the Google Play checkout screen."
+            }
+        }
         "offer_not_available" {
             return [pscustomobject]@{
                 Title = "The selected offer is not available"

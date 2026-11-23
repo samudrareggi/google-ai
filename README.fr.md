@@ -1,6 +1,6 @@
 # ePlus AI Toolkit — Français
 
-<!-- Source README.md git-blob: 52a6b829e68d1c83f2ffba023a0d43364ea8b6eb -->
+<!-- Source README.md git-blob: a68087fe5b1794e92832f5ff1bfd41dca32f3d53 -->
 
 [English](README.md) · [Tiếng Việt](README.vi.md) · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [한국어](README.ko.md) · [Español](README.es.md) · **Français**
 
@@ -121,6 +121,8 @@ Lorsqu'une étape est en cours, les commandes **Check Device & Offers**, **Run**
 
 
 **Check Device & Offers** exécute **Step 1 — Available offers**, pour consulter les offres **sans déclencher de paiement**. Surveillez **Live Status** et **Show technical details** ; l'absence de nouveaux journaux pendant 30 secondes ne signifie pas forcément que l'outil est bloqué.
+
+Sous Windows, connectez-vous au compte voulu dans Google Play avant de consulter les offres. Si l’outil vérifie le compte et trouve l’offre de 12 mois dont le prix initial est nul, choisissez **Review 12-month checkout** pour vérifier les conditions et autoriser séparément le Step 2. Si Google Play vous le demande, saisissez les informations de paiement directement dans l’application. Vérifiez ensuite dans Google Play l’état de l’abonnement et sa date de renouvellement.
 
 Dans **Advanced: Run by step** :
 

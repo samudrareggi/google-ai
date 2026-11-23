@@ -419,8 +419,11 @@ def ensure_network():
 
 # ---------- UI ----------
 def ui_xml() -> str:
-    sh("shell", "uiautomator dump /sdcard/ui.xml")
-    return sh("shell", "cat /sdcard/ui.xml")
+    # Stream the snapshot so payment and profile screens are never written
+    # to shared Android storage. Ignore the command's status suffix.
+    output = sh("exec-out", "uiautomator dump /dev/tty")
+    xml, end, _ = output.rpartition("</hierarchy>")
+    return xml + end if end else ""
 
 
 def nodes(xml: str):
@@ -621,25 +624,57 @@ def current_play_account() -> str:
         warn("Cannot inspect Play Store UI. Open Play Store, tap the profile icon, and retry.")
         return ""
 
+    elements = list(nodes(xml))
+    # A Google One listing can occupy the Play Store without its profile button.
+    if any(n["text"] == "Google One" for n in elements):
+        back = next((n for n in elements if n["desc"] in ("Navigate up", "Back")), None)
+        if back:
+            tap(back["x"], back["y"])
+            time.sleep(2)
+            xml = ui_xml()
+            if f'package="{VENDING}"' not in xml:
+                return ""
+            elements = list(nodes(xml))
+
     opened_profile = False
-    for n in nodes(xml):
+    for n in elements:
+        # Play Store exposes the active profile on its account button in
+        # some versions. Other signed-in accounts in the expanded menu
+        # must not override that explicit identity.
+        if re.match(r"^(?:Google Account|T\u00e0i kho\u1ea3n Google|Google \u5e10\u53f7|Google \u8d26\u53f7)\s*[:\uff1a]", n["desc"], re.I):
+            active = {value.lower() for value in re.findall(
+                r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", n["desc"])}
+            if len(active) == 1:
+                return next(iter(active))
         if ("\u8d26\u53f7\u548c\u8bbe\u7f6e" in n["desc"] or "Account and settings" in n["desc"]
                 or "T\u00e0i kho\u1ea3n v\u00e0 ch\u1ebf \u0111\u1ed9 c\u00e0i \u0111\u1eb7t" in n["desc"]):
             tap(n["x"], n["y"])
             time.sleep(3)
             opened_profile = True
             break
-    best = ""
+    # The profile popup may show multiple signed-in Google accounts. Its
+    # first email is NOT necessarily the account currently selected for
+    # billing. Never infer identity from the first arbitrary UI node.
+    emails = set()
     for n in nodes(ui_xml()):
-        m = re.search(r"([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+)", n["desc"] + " " + n["text"])
-        if m:
-            best = m.group(1).lower()
-            break
+        for email in re.findall(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}",
+                                n["desc"] + " " + n["text"]):
+            emails.add(email.lower())
     if opened_profile:
         sh("shell", "input keyevent 4")
-    if not best:
+    if len(emails) > 1:
+        warn("Multiple Google accounts are visible in Play Store; the active billing "
+             "account cannot be identified safely. Select the intended account "
+             "manually, then repeat the read-only check.")
+        return ""
+    if not emails:
         warn("Play account is not visible to UI automation; check the Play Store profile manually.")
-    return best
+        return ""
+    if not opened_profile:
+        warn("Play Store profile was not opened; a visible email does not prove "
+             "which account is active for billing.")
+        return ""
+    return next(iter(emails))
 
 
 def switch_play(email) -> bool:
@@ -951,17 +986,17 @@ def assess_checkout_terms(text: str, expected_plan: str = "auto") -> dict:
     return result
 
 
-def confirm_zero(wait=40, password="", expected_plan="auto") -> dict:
+def confirm_zero(wait=40, password="", expected_plan="auto", expected_account="") -> dict:
     step("Checking today's Google Play checkout total and trial duration")
     out = {"price": None, "confirmed": False, "ineligible": False,
            "text": "", "reason": "checkout_not_visible"}
+    payment_setup_seen = False
     for _ in range(max(1, wait // 2)):
         visible = " ".join(n["text"] or n["desc"] for n in nodes(ui_xml())
                            if n["text"] or n["desc"])
         assessment = assess_checkout_terms(visible, expected_plan)
         reason = assessment["reason"]
-        out.update({"reason": reason, "price": assessment["today_price"],
-                    "text": assessment["text"]})
+        out.update({"reason": reason, "price": assessment["today_price"]})
         if reason == "ineligible":
             out["ineligible"] = True
             warn("Google Play says this account is not eligible; no Subscribe tap.")
@@ -981,6 +1016,27 @@ def confirm_zero(wait=40, password="", expected_plan="auto") -> dict:
             warn("Google Play backup-payment prompt needs manual review; not enabling it automatically.")
             return out
         if reason == "zero_today_and_duration_verified":
+            if expected_account:
+                accounts = {email.lower() for email in re.findall(
+                    r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", visible)}
+                if accounts != {expected_account.strip().lower()}:
+                    out["reason"] = "checkout_account_mismatch" if accounts else "checkout_account_unverified"
+                    warn("Checkout account could not be matched to the selected account. "
+                         "Review the account on the Google Play checkout screen before retrying.")
+                    return out
+                # An email anywhere on the screen is NOT evidence of the payer.
+                # Require the checkout itself to explicitly identify the payer,
+                # otherwise leave the sheet open for manual confirmation.
+                payer_label = (
+                    r"(?:paying\s+(?:with|as)|billed\s+to|purchase\s+account|"
+                    r"google\s+play\s+account)\s*[:：\-]?\s*" +
+                    re.escape(expected_account.strip().lower())
+                )
+                if not re.search(payer_label, visible, re.I):
+                    out["reason"] = "checkout_account_unverified"
+                    warn("Google Play does not explicitly identify the purchase payer. "
+                         "No automatic Subscribe tap; verify manually in Google Play.")
+                    return out
             if tap_text("\u8ba2\u9605", "Subscribe", "Đăng ký"):
                 out["confirmed"] = True
                 ok("Tapped Subscribe after verifying today's zero total and expected trial period.")
@@ -988,6 +1044,17 @@ def confirm_zero(wait=40, password="", expected_plan="auto") -> dict:
                 out["reason"] = "subscribe_button_not_found"
                 warn("Subscribe control not found; no transaction confirmed.")
             return out
+        if reason in ("checkout_not_visible", "today_price_unverified", "trial_duration_unverified"):
+            if re.search(r"\b(?:add (?:a )?payment method|add (?:a )?credit or debit card)\b",
+                         visible, re.I):
+                if not payment_setup_seen:
+                    note("Action required: Add your payment method directly in Google Play.")
+                # Keep waiting within the existing checkout timeout. The final
+                # account, price and duration checks still run on the next screen.
+                payment_setup_seen = True
+                out["reason"] = "payment_method_not_confirmed"
+                time.sleep(2)
+                continue
         if reason in ("today_price_unverified", "trial_duration_unverified"):
             warn("Checkout does not explicitly verify BOTH today's $0 total and the expected duration. "
                  "A nonzero amount could be the future renewal price. Leaving Google Play open.")
@@ -1077,7 +1144,7 @@ def process(email, password="", totp_secret="", add=True, card=None, plan="auto"
             rec["error"] = "No offer data returned; inspect BillingClient and Frida errors."
         return rec
     if fr["launched"] and fr["launched"].get("code") == 0:
-        rec["sheet"] = confirm_zero(password=password, expected_plan=plan)
+        rec["sheet"] = confirm_zero(password=password, expected_plan=plan, expected_account=email)
         # Preserve the original checkout screen if amount or offer terms
         # are ambiguous; never navigate away before the user can inspect it.
         if rec["sheet"].get("confirmed"):

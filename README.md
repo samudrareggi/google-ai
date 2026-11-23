@@ -132,6 +132,8 @@ The dashboard includes two **inspection-first** actions, adapted from the upstre
 3. Check the account and offer information on the Android screen. A listed offer is **not** a guarantee of eligibility or a successful subscription.
 4. Expand **Advanced: Run by step** only when you deliberately need to select a different stage.
 
+On Windows, sign in to the intended account in Google Play before checking offers. When the check verifies the account and finds the 12-month offer with a zero-priced first phase, choose **Review 12-month checkout** to review and separately approve Step 2 only. Enter payment details directly in Google Play if prompted. Verify the actual subscription and renewal date there after checkout.
+
 **Important distinction:** Step 1 does not initiate a purchase, but underlying environment preflight can still install or repair ADB/Frida and change emulator/network settings. **Step 0 — Environment** is a setup/diagnostics stage, not a purchase-free guarantee of zero local side effects.
 
 The sidebar lists the six stages. Android Device / Google Account cards update from observed output; account identifiers are masked. Original-author and maintainer credits link to their GitHub profiles in supported terminals.

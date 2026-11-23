@@ -40,6 +40,24 @@ class DeviceDiagnosticsTests(unittest.TestCase):
             self.assertEqual(result, "example@example.com")
             self.assertTrue(any("am start -n com.android.vending/" in " ".join(a) for a in called))
 
+    def test_google_one_store_listing_returns_to_active_profile(self):
+        listing = '<node package="com.android.vending" />'
+        detail = [{"text": "Google One", "desc": ""},
+                  {"text": "", "desc": "Navigate up", "x": 10, "y": 20}]
+        home = [{"text": "", "desc": "Google Account: selected@example.com"}]
+        with patch.object(mod, "ui_xml", return_value=listing), \
+             patch.object(mod, "nodes", side_effect=[detail, home]), \
+             patch.object(mod.time, "sleep"), patch.object(mod, "tap") as tap:
+            self.assertEqual(mod.current_play_account(), "selected@example.com")
+        tap.assert_called_once_with(10, 20)
+
+    def test_ui_snapshot_uses_no_persistent_android_file(self):
+        with patch.object(mod, "sh", return_value=(
+                '<?xml version="1.0"?><hierarchy></hierarchy>'
+                'UI hierchary dumped to: /dev/tty')) as adb:
+            self.assertEqual(mod.ui_xml(), '<?xml version="1.0"?><hierarchy></hierarchy>')
+        adb.assert_called_once_with("exec-out", "uiautomator dump /dev/tty")
+
     def test_missing_google_one_is_not_launched(self):
         with patch.object(mod, "sh", return_value="") as adb:
             self.assertEqual(mod.launch_app(), 0)

@@ -154,6 +154,57 @@ class TextualSmokeTests(unittest.IsolatedAsyncioTestCase):
                 await pilot.pause()
                 self.assertFalse(link.display)
 
+    async def test_quick_check_offers_only_12_months_and_requires_approval(self):
+        from tui import Approval, GoogleAITUI
+        from tui_core import Outcome
+
+        with tempfile.TemporaryDirectory() as directory:
+            app = GoogleAITUI(repo=Path(directory))
+            report = {"status": "listed", "detected_play_account": "test@example.com",
+                      "offers": [{"id": "12months-eft", "period": "P1Y", "micros": 0}]}
+            with patch.object(app, "run_stage") as launch:
+                async with app.run_test(size=(90, 20)) as pilot:
+                    await pilot.click("#quickstart")
+                    launch.assert_called_once_with(1)
+                    app._received("Device emulator-5554")
+                    app._received("Account test@example.com")
+                    app._finished(1, Outcome("listed", "Offers loaded", ""), report)
+                    await pilot.pause()
+                    self.assertIsInstance(app.screen, Approval)
+                    self.assertEqual(app.screen.query_one("#approve").label.plain,
+                                     "Review 12-month checkout")
+                    await pilot.click("#approve")
+                    await pilot.pause()
+                    self.assertIsInstance(app.screen, Approval)
+                    launch.assert_called_once_with(1)
+                    await pilot.click("#approve")
+                    await pilot.pause()
+                    launch.assert_called_with(2)
+                    self.assertFalse(app.sequence)
+
+    async def test_quick_check_requires_verified_identity_and_exact_offer(self):
+        from tui import Approval, GoogleAITUI
+        from tui_core import Outcome
+
+        for detected, offer_id, micros in (
+            ("another@example.com", "12months-eft", 0),
+            ("test@example.com", "other-offer", 0),
+            ("test@example.com", "12months-eft", 1),
+        ):
+            with self.subTest(detected=detected, offer_id=offer_id, micros=micros):
+                app = GoogleAITUI(repo=Path.cwd())
+                report = {"status": "listed", "detected_play_account": detected,
+                          "offers": [{"id": offer_id, "period": "P1Y", "micros": micros}]}
+                with patch.object(app, "run_stage") as launch:
+                    async with app.run_test(size=(110, 35)) as pilot:
+                        await pilot.click("#quickstart")
+                        app._received("Device emulator-5554")
+                        app._received("Account test@example.com")
+                        app._finished(1, Outcome("listed", "Offers loaded", ""), report)
+                        await pilot.pause()
+                        self.assertNotIsInstance(app.screen, Approval)
+                        launch.assert_called_once_with(1)
+
     async def test_application_branding(self):
         from tui import GoogleAITUI
         self.assertEqual(GoogleAITUI.TITLE, "ePlus AI Toolkit")
