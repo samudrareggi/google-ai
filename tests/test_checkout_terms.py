@@ -41,6 +41,36 @@ class CheckoutTests(unittest.TestCase):
         self.assertTrue(result["confirmed"])
         tap.assert_called_once()
 
+    def test_slider_checkout_reads_free_trial_separately_from_paid_renewal(self):
+        screen = ("Google AI Pro (5 TB) Starting today 12-month free trial "
+                  "Starting 23 Nov 2027 Rp 309.000/month + tax Slide to subscribe")
+        with patch.object(app, "ui_xml", return_value=screen), \
+             patch.object(app, "nodes", side_effect=lambda text: [{"text": text, "desc": ""}]), \
+             patch.object(app, "tap_text") as tap, patch.object(app, "sh") as adb:
+            result = app.confirm_zero(wait=2, expected_plan="pro12")
+        self.assertEqual(result["reason"], "manual_subscribe_required")
+        self.assertEqual(result["price"], "0")
+        self.assertFalse(result["confirmed"])
+        tap.assert_not_called()
+        adb.assert_not_called()
+
+    def test_slider_does_not_infer_zero_for_wrong_or_ambiguous_starting_terms(self):
+        for terms in ("Starting today 6-month free trial Starting 23 Nov 2027 Rp 309.000/month",
+                      "Starting today 12-month free trial plus a Rp 100 today fee "
+                      "Starting 23 Nov 2027 Rp 309.000/month"):
+            with self.subTest(terms=terms):
+                result = app.assess_checkout_terms(
+                    "Google AI Pro " + terms + " Slide to subscribe", "pro12")
+                self.assertEqual(result["reason"], "manual_subscribe_required")
+                self.assertIsNone(result["today_price"])
+
+    def test_slider_does_not_hide_payment_security_block(self):
+        result = app.assess_checkout_terms(
+            "Google AI Pro Starting today 12-month free trial Starting 23 Nov 2027 "
+            "Rp 309.000/month Slide to subscribe OR-REH-04", "pro12")
+        self.assertEqual(result["reason"], "payment_security_blocked")
+        self.assertIsNone(result["today_price"])
+
     def test_future_renewal_price_does_not_mask_zero_due_today(self):
         result = app.assess_checkout_terms(
             "Google AI Pro Subscribe Today US$0.00 12-month free trial "

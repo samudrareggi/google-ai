@@ -22,6 +22,12 @@ function Get-UserIssue {
                 Action = "Review the terms in Google Play. -Force cannot make the offer eligible."
             }
         }
+        "manual_subscribe_required" {
+            return [pscustomobject]@{
+                Title = "Google Play requires Slide to subscribe"
+                Action = "Review the account, charge today and renewal terms. If you agree, use the slider in Google Play and verify the subscription there."
+            }
+        }
         "today_price_unverified" {
             return [pscustomobject]@{
                 Title = "Could not confirm the amount due today"

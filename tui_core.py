@@ -80,6 +80,11 @@ MESSAGES = {
         "Google Play requires account verification",
         "Review Google Account Security and Google Payments alerts (OR-REH-04). Stop retrying.",
     ),
+    "manual_subscribe_required": (
+        "Google Play requires Slide to subscribe",
+        "Check the account, charge today and renewal terms in Google Play. "
+        "If you agree, use the slider on the open checkout screen and verify the subscription there.",
+    ),
     "today_price_unverified": (
         "Today's checkout amount is unclear",
         "Check the amount payable today on the Android screen before trying again.",
@@ -204,6 +209,8 @@ def outcome_for_stage(step: int, exit_code: int, report: dict | None) -> Outcome
     title, instruction = MESSAGES.get(
         code, ("Could not verify this step",
                "Check the Android screen and Debug before retrying."))
+    if code == "manual_subscribe_required" and isinstance(sheet, dict) and sheet.get("price") == "0":
+        instruction = "Google Play shows a 12-month free trial starting today. " + instruction
     return Outcome(code, title, instruction,
                    can_review=(step >= 2 and status == "checkout_requested"))
 

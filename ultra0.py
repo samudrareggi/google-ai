@@ -963,6 +963,15 @@ def assess_checkout_terms(text: str, expected_plan: str = "auto") -> dict:
     if not (any(x in low for x in ("subscribe", "\u8ba2\u9605", "đăng ký")) and
             any(x in low for x in ("google ai", "google one", "ultra", "pro"))):
         return result
+    if re.search(r"\bslide to subscribe\b", low):
+        result["reason"] = "manual_subscribe_required"
+        # The initial phase and the dated renewal are separate rows. Recognize
+        # this exact trial wording for display only, never as permission to submit.
+        if expected_plan == "pro12" and re.search(
+                r"\bstarting today\s+12[- ]month free trial\s+starting\s+"
+                r"\d{1,2}\s+[a-z]{3,9}\s+\d{4}\b", low):
+            result["today_price"] = "0"
+        return result
     currency = r"(?:US\$|HK\$|NT\$|CA\$|AU\$|JP¥|¥|￥|\$|€|£|₫|VND\s*)"
     zero = currency + r"\s*0(?:[.,]0{1,2})?(?![\d.,])"
     today = r"(?:today|due today|pay today|total today|charged today|\u4eca\u5929|\u4eca\u65e5|\u672c\u65e5|hôm nay)"
@@ -1014,6 +1023,10 @@ def confirm_zero(wait=40, password="", expected_plan="auto", expected_account=""
             return out
         if reason == "backup_payment_methods_prompt":
             warn("Google Play backup-payment prompt needs manual review; not enabling it automatically.")
+            return out
+        if reason == "manual_subscribe_required":
+            note("Review the account and renewal terms in Google Play. "
+                 "Use Slide to subscribe on the open checkout screen only if you agree.")
             return out
         if reason == "zero_today_and_duration_verified":
             if expected_account:

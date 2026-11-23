@@ -126,6 +126,15 @@ class CoreTests(unittest.TestCase):
         self.assertNotIn("activated", result.title.lower())
         self.assertIn("Check Google Play", result.instruction)
 
+    def test_slider_checkout_cannot_authorize_next_stage(self):
+        report = {"status": "checkout_not_confirmed",
+                  "sheet": {"reason": "manual_subscribe_required", "price": "0"}}
+        outcome = outcome_for_stage(2, 0, report)
+        self.assertEqual(outcome.code, "manual_subscribe_required")
+        self.assertIn("Slide to subscribe", outcome.title)
+        self.assertIn("12-month free trial starting today", outcome.instruction)
+        self.assertFalse(outcome.can_review)
+
     def test_exit_error_never_allows_next(self):
         result = outcome_for_stage(3, 1, {"status": "checkout_requested"})
         self.assertFalse(result.can_review)

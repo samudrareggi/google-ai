@@ -6,6 +6,7 @@ $cases = @(
     @{ Code = "payment_security_blocked"; Needle = "OR-REH-04" },
     @{ Code = "already_subscribed"; Needle = "already active" },
     @{ Code = "ineligible"; Needle = "not eligible" },
+    @{ Code = "manual_subscribe_required"; Needle = "Slide to subscribe" },
     @{ Code = "today_price_unverified"; Needle = "due today" },
     @{ Code = "trial_duration_unverified"; Needle = "trial length" },
     @{ Code = "backup_payment_methods_prompt"; Needle = "backup payment methods" },

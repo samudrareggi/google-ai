@@ -17,6 +17,8 @@ On Windows, sign in to the intended account in Google Play before checking offer
 
 The sidebar lists the six stages. Android Device / Google Account cards update from observed output; account identifiers are masked. Original-author and maintainer credits link to their GitHub profiles in supported terminals.
 
+When Google Play shows **Slide to subscribe**, the toolkit leaves checkout open for you to review and complete there. A **Starting today** free-trial row describes the initial phase. Check the separate dated renewal row for the price after the trial, and verify the subscription in Google Play after submitting.
+
 ### Advanced run modes
 
 | Mode | Behavior |
