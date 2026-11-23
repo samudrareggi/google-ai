@@ -21,6 +21,8 @@ class MuMuSetupTests(unittest.TestCase):
                 return json.dumps(statuses.pop(0))
             if args[1] == "adb":
                 return "connected to 127.0.0.1:16416"
+            if "resolve-activity" in args:
+                return "com.android.vending/.MainActivity"
             if args[-1] == "get-state":
                 return "device"
             if args[-2:] == ("dumpsys", "account"):
@@ -36,7 +38,8 @@ class MuMuSetupTests(unittest.TestCase):
             result = mumu_setup.prepare("requested@example.com", Event(), lambda message: None)
         self.assertEqual(result, "127.0.0.1:16416")
         self.assertTrue(any("--vmindex" in call and "0" in call and "launch" in call for call in calls))
-        self.assertTrue(any("android.intent.action.MAIN" in call and "-s" in call for call in calls))
+        self.assertTrue(any(call[-4:] == ("start", "-W", "-n", "com.android.vending/.MainActivity")
+                            for call in calls))
         self.assertTrue(all("requested@example.com" not in call for call in calls))
 
     def test_cancelled_before_start_creates_no_instance(self):

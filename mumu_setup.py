@@ -96,8 +96,15 @@ def prepare(email: str, stop: Event, progress: Callable[[str], None]) -> str | N
         raise RuntimeError("The new MuMu instance is not online through ADB.")
     if stop.is_set():
         return None
-    _run(adb, "-s", serial, "shell", "am", "start", "-a", "android.intent.action.MAIN",
-         "-c", "android.intent.category.LAUNCHER", "-p", "com.android.vending")
+    resolved = _run(adb, "-s", serial, "shell", "cmd", "package", "resolve-activity",
+                    "--brief", "-a", "android.intent.action.MAIN",
+                    "-c", "android.intent.category.LAUNCHER", "com.android.vending")
+    activity = re.search(r"^com\.android\.vending/[A-Za-z0-9_.$]+$", resolved, re.MULTILINE)
+    if not activity:
+        raise RuntimeError("Google Play could not be opened on the new MuMu instance.")
+    launch_output = _run(adb, "-s", serial, "shell", "am", "start", "-W", "-n", activity[0])
+    if "Error:" in launch_output:
+        raise RuntimeError("Google Play could not be opened on the new MuMu instance.")
 
     progress("Sign in to Google Play in MuMu. Complete any QR or verification prompts there.")
     for _ in range(150):
